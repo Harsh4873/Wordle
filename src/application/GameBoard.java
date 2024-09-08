@@ -1,7 +1,6 @@
 package application;
 
-
-import java.util.HashMap;
+import java.util.HashMap; 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -25,45 +24,68 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.input.KeyEvent;
 
-public class GameBoard extends Application {
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 
-    private static final int GRID_SIZE = 5; // 5x6 grid for Wordle
+
+/**
+ * the GameBoard class is the main game interface for the Wordle 
+ * handles and updates of the game's UI components(grid, title, stats, reset button)
+ */
+public class GameBoard extends Application 
+{
+
+    // 5x6 grid for Wordle
+    private static final int GRID_SIZE = 5; 
     private static final int MAX_TRIES = 6;
-    private int currentRow = 0;
+    GridPane letterGrid = new GridPane(); 
+    
+    // where the player is currently guessing 
+    private int currentRow = 0; 
     private int currentCol = 0;
+
     private String answerWord; // Store the answer word
-    private Word wordGenerator; // Word generator
-    private StringBuilder currentWord;
-    private Map<Character, Button> keyboardButtons = new HashMap<>();
-    private int count; 
-    GridPane letterGrid = new GridPane();
+    
+    private StringBuilder currentWord; // current guess using StringBuilder
+    private Map<Character, Button> keyboardButtons = new HashMap<>(); //way to track the keyboard, helps detect if it has been grey'd out or not 
+    private int count; // # of guesses per round 
+    
+    
+    //Objects initalized here so I can use through all methods 
+    Word wordGenerator; 
     Player player;
     Stats playerStats; 
     Text playerNameDisplay; 
     
-
+    /**
+     * starts the primary stage of the application
+     * @param primaryStage The primary stage for this application, this is where the application scene can be set
+     */
     @Override
-    public void start(Stage primaryStage) {
+    public void start(Stage primaryStage) 
+    {
         try {
             wordGenerator = new Word(); // Initialize Word generator
-            answerWord = wordGenerator.getRandomWord(); // Get a random word
-            //answerWord = "study"; // to show loss case 
+            answerWord = wordGenerator.getRandomWord(); // Get a random word 
             
-            
-        } catch (Exception e) {
+        } 
+        catch (Exception e) 
+        {
             e.printStackTrace();
-            System.out.println("Failed to initialize the word generator or fetch a word.");
-            return; // Exit if we can't load a word
+            System.out.println("Error");
+            return; 
         }
        
-
         primaryStage.setTitle("Wordle!"); 
 
         // Main layout container
         VBox root = new VBox(10);
         root.setAlignment(Pos.CENTER);
         root.setStyle("-fx-background-color: #000000;");
-
 
         // Title
         Text title = new Text("Wordle");
@@ -74,10 +96,11 @@ public class GameBoard extends Application {
         letterGrid.setHgap(2);
         letterGrid.setVgap(2);
         
-
         // Create grid cells
-        for (int row = 0; row < MAX_TRIES; row++) {
-            for (int col = 0; col < GRID_SIZE; col++) {
+        for (int row = 0; row < MAX_TRIES; row++) 
+        {
+            for (int col = 0; col < GRID_SIZE; col++) 
+            {
                 Label cell = new Label();
                 cell.setMinSize(60, 60);
                 cell.setStyle("-fx-border-color: black; -fx-border-width: 2; -fx-background-color: white; -fx-alignment: center; -fx-font-size: 30px;");
@@ -85,13 +108,15 @@ public class GameBoard extends Application {
             }
         }
 
-        // Keyboard
+        // Keyboard setup, Set the first two rows of the keyboard and their action events
         String[] rows = {"QWERTYUIOP", "ASDFGHJKL"};
         VBox keyboard = new VBox(6);
-        for (int i = 0; i < rows.length; i++) {
+        for (int i = 0; i < rows.length; i++) 
+        {
             HBox keyRow = new HBox(5);
             keyRow.setAlignment(Pos.CENTER);
-            for (char c : rows[i].toCharArray()) {
+            for (char c : rows[i].toCharArray()) 
+            {
                 Button key = new Button(String.valueOf(c));
                 key.setMinSize(50, 50);
                 key.setOnAction(e -> handleKeyPress(c, letterGrid));
@@ -101,7 +126,7 @@ public class GameBoard extends Application {
             keyboard.getChildren().add(keyRow);
         }
 
-        // Add ENTER key in the middle
+        // Add ENTER key 
         HBox enterKeyRow = new HBox(5);
         enterKeyRow.setAlignment(Pos.CENTER);
         Button enterKey = new Button("ENTER");
@@ -109,8 +134,6 @@ public class GameBoard extends Application {
         enterKey.setOnAction(e -> handleEnter(letterGrid));
         enterKeyRow.getChildren().add(enterKey);
         
-       
-
         // Add ZXCVBNM row
         HBox zxcvbnmRow = new HBox(5);
         zxcvbnmRow.getChildren().add(enterKeyRow); 
@@ -130,26 +153,24 @@ public class GameBoard extends Application {
         backspaceKey.setOnAction(e -> handleBackspace(letterGrid));
         zxcvbnmRow.getChildren().add(backspaceKey);
 
-        // Add the entire row to the keyboard
+        // Add the last row to the keyboard
         keyboard.getChildren().add(zxcvbnmRow);
 
-        // Create an empty row for formatting and design
+        // Create an empty row for formatting and design, create some space at the bottom so the last row can be properly seen
         HBox emptyRow = new HBox();
-        emptyRow.setMinHeight(200); // Set minimum height to maintain consistent spacing
+        emptyRow.setMinHeight(200); 
         keyboard.getChildren().add(emptyRow);
 
         keyboard.setAlignment(Pos.CENTER);
-
-        // Keyboard input handling
         root.addEventFilter(KeyEvent.KEY_PRESSED, event -> handleKeyboardInput(event, letterGrid));
         
-
-
+        //add all the buttons and boxes 
         root.getChildren().addAll(title, letterGrid, keyboard);
         Scene scene = new Scene(root, 800, 1400);
         primaryStage.setScene(scene);
         primaryStage.show();
 
+    // Prompt for user name
     TextInputDialog dialog = new TextInputDialog();
     dialog.setTitle("Player Information: ");
     dialog.setHeaderText("Welcome to Harsh's Wordle!");
@@ -161,52 +182,57 @@ public class GameBoard extends Application {
     player = new Player("");
     playerStats = new Stats("",0,0,0);
     String name = result.orElse("");
-    if (!name.isEmpty()) {
-        name = name.substring(0, 1).toUpperCase() + name.substring(1);
-        player.setUserName(name); // Convert name to uppercase and space out letters
-        playerNameDisplay = new Text("\n\n\n\n\n\n\n\n\n\n\n\n Player: " + player.getUserName() + "\n" 
-                + " Wins: " + playerStats.getWins() + "\n" 
-                + " Loss: " + playerStats.getLoss() + "\n" 
-                + " Average Guesses: " + playerStats.getAverageGuesses());
-        playerNameDisplay.setStyle("-fx-font-size: 15px; -fx-font-family: 'Courier New'; -fx-fill: #FFFF00; -fx-letter-spacing: 2px;"); // Use Orbitron font and space out letters
-        HBox playerNameBox = new HBox(playerNameDisplay);
-        playerNameBox.setAlignment(Pos.TOP_LEFT);
-        root.getChildren().add(0, playerNameBox); // Add at the top of the root container
 
+    // Read from the log file, if the player has recently played, load in their stats 
+    File logFile = new File("src/log.txt");
+    if (logFile.exists()) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(logFile))) 
+        {
+            String storedName = reader.readLine();
+            if (storedName != null && storedName.equalsIgnoreCase(name)) 
+            {
+                int wins = Integer.parseInt(reader.readLine());
+                int loss = Integer.parseInt(reader.readLine());
+                int guesses = Integer.parseInt(reader.readLine());
+                playerStats = new Stats(name, wins, loss, guesses);
+            }
+        } 
+        catch (IOException | NumberFormatException e) 
+        {
+            System.err.println("Error");
+        }
     }
-
-//    winsDisplay = new Text(" Wins: " + playerStats.getWins());
-//    winsDisplay.setStyle("-fx-font-size: 14px; -fx-font-family: 'Courier New'; -fx-fill: #FFFF00; -fx-letter-spacing: 2px;");
-//    HBox winsBox = new HBox(winsDisplay);
-//    winsBox.setAlignment(Pos.TOP_LEFT);
-//    root.getChildren().add(1, winsBox); // Add below the player's name
-//
-//    lossesDisplay = new Text(" Loss: " + playerStats.getLoss());
-//    lossesDisplay.setStyle("-fx-font-size: 14px; -fx-font-family: 'Courier New'; -fx-fill: #FFFF00; -fx-letter-spacing: 2px;");
-//    HBox lossesBox = new HBox(lossesDisplay);
-//    lossesBox.setAlignment(Pos.TOP_LEFT);
-//    root.getChildren().add(2, lossesBox); // Add below the wins
-//    
-//    guessDisplay = new Text(" Average Guesses: " + playerStats.getAverageGuesses());
-//    guessDisplay.setStyle("-fx-font-size: 14px; -fx-font-family: 'Courier New'; -fx-fill: #FFFF00; -fx-letter-spacing: 2px;");
-//    HBox guessBox = new HBox(guessDisplay);
-//    guessBox.setAlignment(Pos.TOP_LEFT);
-//    root.getChildren().add(3, guessBox); // Add below the wins
+    // set default name 
+    if (name.isEmpty()) 
+    {
+        name = "Player";
+    }
+    // set up the display for the players name, wins, loss, and average guesses 
+    name = name.substring(0, 1).toUpperCase() + name.substring(1);
+    player.setUserName(name); // Set formatted name to player
+    playerNameDisplay = new Text("\n\n\n\n\n\n\n\n\n\n\n\n Player: " + player.getUserName() + "\n" 
+            + " Wins: " + playerStats.getWins() + "\n" 
+            + " Losses: " + playerStats.getLoss() + "\n" 
+            + " Average Guesses: " + playerStats.getAverageGuesses());
+    playerNameDisplay.setStyle("-fx-font-size: 15px; -fx-font-family: 'Courier New'; -fx-fill: #FFFF00; -fx-letter-spacing: 2px;");
+    HBox playerNameBox = new HBox(playerNameDisplay);
+    playerNameBox.setAlignment(Pos.TOP_LEFT);
+    root.getChildren().add(0, playerNameBox); // Add at the top of the root container
 
     // Add a reset button
     Button resetButton = new Button("  Reset  ");
-    resetButton.setOnAction(e -> resetBoard(letterGrid));
+    resetButton.setOnAction(e -> resetBoard());
     resetButton.setStyle("-fx-background-color: #FF4500; -fx-font-size: 16px; -fx-padding: 14px;"); // Set the button color to red and increase font size and padding
     HBox resetButtonBox = new HBox(resetButton);
     resetButtonBox.setAlignment(Pos.CENTER_RIGHT);
     root.getChildren().add(1,resetButtonBox); // Add below the losses
-//    
-    
-   
 }
  
 
-    private void resetBoard(GridPane grid) 
+    /**
+     * resets the game board to its initial state, clearing all entered letters and resetting the grid.
+     */
+    private void resetBoard() 
     {
         // Remove all children from the grid
         letterGrid.getChildren().clear();
@@ -223,7 +249,7 @@ public class GameBoard extends Application {
     // Reset current row and column to start positions
     currentRow = 0;
     currentCol = 0;
-    // Enable all keyboard buttons and reset their styles
+    // Enable all keyboard buttons and reset their styles(un-grey them)
     for (Button key : keyboardButtons.values()) 
     {
         key.setDisable(false);
@@ -233,6 +259,11 @@ public class GameBoard extends Application {
 	}
     
 
+    /**
+     * Handles key press events for the on screen keybaord in the game
+     * @param c The character corresponding to the pressed key
+     * @param grid The grid pane that represents the user's inputs
+     */
     private void handleKeyPress(char c, GridPane grid) 
     {
         if (currentCol < GRID_SIZE) {
@@ -242,47 +273,60 @@ public class GameBoard extends Application {
         }
     }
 
+    /**
+     * Handles the 'ENTER' key press, which submits the current word attempt and processes it.
+     * @param grid The grid pane that represents the letter grid in the UI.
+     */
     private void handleEnter(GridPane grid) 
     {
         if (currentCol == GRID_SIZE) 
-        {
+        {   
+            // build the current word from the grid
+            currentWord = new StringBuilder();
             
-        	currentWord = new StringBuilder();
-            
+            // get the current word from the grid
             for (int col = 0; col < GRID_SIZE; col++) 
             {
                 Label cell = (Label) grid.getChildren().get(currentRow * GRID_SIZE + col);
                 currentWord.append(cell.getText());
             }
             
+            // Check if the formed word is in the valid word list
             if(!wordGenerator.checkIfInList(currentWord.toString()))
             {
+                // Show alert if the word is not valid
                 Alert alert = new Alert(Alert.AlertType.WARNING);
                 alert.setTitle("Invalid Word");
                 alert.setHeaderText(null);
                 alert.setContentText("Not in word list.");
                 alert.showAndWait();
-                return; // Prevent further processing when the word is not valid
+                return; // stop the program here 
             }
             
+            // get the [_, _, _, _, _] format of the word, based on how many are right/wrong
             List<String> result = wordGenerator.checkWordOrder(currentWord.toString(), answerWord);
             
+            // Set to track the used characters for coloring the keyboard
             Set<Character> usedChars = new HashSet<>();
             for (int col = 0; col < GRID_SIZE; col++) 
             {
                 Label cell = (Label) grid.getChildren().get(currentRow * GRID_SIZE + col);
                 char guessChar = currentWord.charAt(col);
                 char resultChar = result.get(col).charAt(0);
+                
+                // Correct character in the correct position
                 if (resultChar == guessChar) 
                 {
                     cell.setStyle("-fx-background-color: green; -fx-border-color: black; -fx-border-width: 2; -fx-alignment: center; -fx-font-size: 30px;");
                     usedChars.add(guessChar);
                 } 
+                // Correct character but in the wrong position
                 else if (wordGenerator.checkInWord(guessChar, answerWord) && !usedChars.contains(guessChar)) 
                 {
                     cell.setStyle("-fx-background-color: yellow; -fx-border-color: black; -fx-border-width: 2; -fx-alignment: center; -fx-font-size: 30px;");
                     usedChars.add(guessChar);
                 } 
+                // Incorrect character
                 else 
                 {
                     cell.setStyle("-fx-background-color: grey; -fx-border-color: black; -fx-border-width: 2; -fx-alignment: center; -fx-font-size: 30px;");
@@ -294,78 +338,99 @@ public class GameBoard extends Application {
                         }
                     }
                 }
+            }
             // Re-check disabled keys and unlock them if the letter is still in the word
-            for (Map.Entry<Character, Button> entry : keyboardButtons.entrySet()) {
+            for (Map.Entry<Character, Button> entry : keyboardButtons.entrySet()) 
+            {
                 char keyChar = entry.getKey();
                 Button keyButton = entry.getValue();
-                if (keyButton.isDisabled() && wordGenerator.checkInWord(keyChar, answerWord)) {
+                if (keyButton.isDisabled() && wordGenerator.checkInWord(keyChar, answerWord)) 
+                {
                     keyButton.setDisable(false);
                     keyButton.setStyle("-fx-background-color: lightgrey; -fx-border-color: black;");
                 }
             }
-            }
+            
+            // Check if the guessed word matches the answer word
             if (currentWord.toString().equalsIgnoreCase(answerWord)) 
-                {
-            		count += 1; 
-            		playerStats.addWins();
-                    playerStats.setAverageGuesses(count);
-                    updateScoreDisplay();
-                    Alert winAlert = new Alert(null);
-                    winAlert.setTitle("Congratulations!");
-                    winAlert.setHeaderText("Fantastic! You've won!");
-                    winAlert.setContentText("You've guessed the word correctly! Celebrate your victory!");
-                    winAlert.initStyle(StageStyle.UTILITY);
-                    winAlert.getDialogPane().setStyle("-fx-background-color: linear-gradient(to right, #00b09b, #96c93d); -fx-font-family: 'Comic Sans MS'; -fx-font-size: 16px; -fx-text-fill: #ffffff;");
-                    ButtonType resetButton = new ButtonType("Play Again");
-                    winAlert.getButtonTypes().setAll(resetButton);
-                    winAlert.setX(440); // Set X position
-                    winAlert.setY(620); // Set Y position
-                    Optional<ButtonType> resultWin = winAlert.showAndWait();
-                    if (resultWin.isPresent() && resultWin.get() == resetButton) {
-                        resetBoard(grid); // Fetch a new word
-                    }
-                    return; // Exit the method to end the game immediately after a win
+            {
+                // Increment win count and update player stats
+                count += 1; 
+                playerStats.addWins();
+                playerStats.setAverageGuesses(count);
+                updateScoreDisplay();
+                
+                // winning alert 
+                Alert winAlert = new Alert(null);
+                winAlert.setTitle("Congratulations!");
+                winAlert.setHeaderText("Fantastic! You've won!");
+                winAlert.setContentText("You've guessed the word correctly! Celebrate your victory!");
+                winAlert.initStyle(StageStyle.UTILITY);
+                winAlert.getDialogPane().setStyle("-fx-background-color: linear-gradient(to right, #00b09b, #96c93d); -fx-font-family: 'Comic Sans MS'; -fx-font-size: 16px; -fx-text-fill: #ffffff;");
+                ButtonType resetButton = new ButtonType("Play Again");
+                winAlert.getButtonTypes().setAll(resetButton);
+                winAlert.setX(440); // Set X position
+                winAlert.setY(620); // Set Y position
+                Optional<ButtonType> resultWin = winAlert.showAndWait();
+                if (resultWin.isPresent() && resultWin.get() == resetButton)
+                 {
+                    resetBoard(); // get a new word and reset the board
                 }
+                return; // stop program
+            }
+            // Move to the next row if not the last attempt
             else if (currentRow < MAX_TRIES - 1) 
             {
                 currentRow++;
                 currentCol = 0;
                 count += 1;
             } 
+            // Handle the case when all attempts are over
             else 
-                {
-            		count += 1; 
-                    playerStats.addLoss();
-                    updateScoreDisplay();
-                    Alert lossAlert = new Alert(AlertType.ERROR);
-                    lossAlert.setTitle("All Attempts Over");
-                    lossAlert.setHeaderText("You Lost, the correct word was: ");
-                    lossAlert.setX(450); // Set X position
-                    lossAlert.setY(900); // Set Y position
-                    lossAlert.setContentText("\t\t\t" + answerWord.toUpperCase());
-                    lossAlert.initStyle(StageStyle.UTILITY);
-                    lossAlert.getDialogPane().setStyle("-fx-background-color: green; -fx-font-family: 'Comic Sans MS'; -fx-font-size: 18px; -fx-text-fill: #ffffff;");
-                    ButtonType tryAgainButton = new ButtonType("Try Again!");
-                    
-                    lossAlert.getButtonTypes().setAll(tryAgainButton);
-                    lossAlert.showAndWait();
-                    resetBoard(grid);
-                    answerWord = wordGenerator.getRandomWord(); // Fetch a new word
-                }
-            
-            
+            {
+                // Increment loss count and update display
+                count += 1; 
+                playerStats.addLoss();
+                updateScoreDisplay();
+                
+                // loss alert 
+                Alert lossAlert = new Alert(AlertType.ERROR);
+                lossAlert.setTitle("All Attempts Over");
+                lossAlert.setHeaderText("You Lost, the correct word was: ");
+                lossAlert.setX(450); // Set X position
+                lossAlert.setY(900); // Set Y position
+                lossAlert.setContentText("\t\t\t" + answerWord.toUpperCase());
+                lossAlert.initStyle(StageStyle.UTILITY);
+                lossAlert.getDialogPane().setStyle("-fx-background-color: green; -fx-font-family: 'Comic Sans MS'; -fx-font-size: 18px; -fx-text-fill: #ffffff;");
+                ButtonType tryAgainButton = new ButtonType("Try Again!");
+                
+                lossAlert.getButtonTypes().setAll(tryAgainButton);
+                lossAlert.showAndWait();
+                resetBoard();
+                answerWord = wordGenerator.getRandomWord(); // get a new word
+            }
         }
     }
     
 
-    private void handleBackspace(GridPane grid) {
-        if (currentCol > 0) {
+    /**
+     * handles the backspace key press, removing the last entered letter from the current word attempt.
+     */
+    private void handleBackspace(GridPane grid) 
+    {
+        if (currentCol > 0) 
+        {
             currentCol--;
             Label cell = (Label) grid.getChildren().get(currentRow * GRID_SIZE + currentCol);
             cell.setText("");
         }
     }
 
+    /**
+     * Handles keyboard input from the user, mapping physical keyboard presses to actions in the game.
+     * @param event The key event triggered by pressing a key.
+     * @param grid The grid pane that represents the letter grid in the UI.
+     */
     private void handleKeyboardInput(KeyEvent event, GridPane grid) {
         switch (event.getCode()) {
             case ENTER:
@@ -375,12 +440,13 @@ public class GameBoard extends Application {
                 handleBackspace(grid);
                 break;
             default:
-                if (event.getText().matches("[a-zA-Z]")) {
+                if (event.getText().matches("[a-zA-Z]")) 
+                {
                     char inputChar = event.getText().toUpperCase().charAt(0);
                     if (keyboardButtons.containsKey(inputChar)) {
                         Button keyButton = keyboardButtons.get(inputChar);
-                        if (keyButton.isDisabled()) {
-                            // If the button is disabled, do nothing and return
+                        if (keyButton.isDisabled()) 
+                        {
                             return;
                         }
                     }
@@ -397,22 +463,37 @@ public class GameBoard extends Application {
                 keyButton.setStyle("-fx-background-color: lightgrey; -fx-border-color: black;");
             }
         }
-        
-        event.consume(); // Consume the event to prevent default handling
     }
 
+    /**
+     * Updates the display of the player's score and statistics.
+     */
     private void updateScoreDisplay() 
     {
            playerNameDisplay.setText("\n\n\n\n\n\n\n\n\n\n\n\n Player: " + player.getUserName() + "\n" 
                    + " Wins: " + playerStats.getWins() + "\n" 
-                   + " Loss: " + playerStats.getLoss() + "\n" 
+                   + " Losses: " + playerStats.getLoss() + "\n" 
                    + " Average Guesses: " + playerStats.getAverageGuesses());
-           playerNameDisplay.setStyle("-fx-font-size: 15px; -fx-font-family: 'Courier New'; -fx-fill: #FFFF00; -fx-letter-spacing: 2px;"); // Use Orbitron font and space out letters
+           playerNameDisplay.setStyle("-fx-font-size: 15px; -fx-font-family: 'Courier New'; -fx-fill: #FFFF00; -fx-letter-spacing: 2px;"); 
 
     }
   
     public static void main(String[] args) {
         launch(args);
     }
+
+    @Override
+    public void stop() 
+    {
+        // Create a log file with player stats
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter("src/log.txt"))) {
+            writer.write(player.getUserName() + "\n");
+            writer.write(playerStats.getWins() + "\n");
+            writer.write(playerStats.getLoss() + "\n");
+            writer.write(playerStats.getAverageGuesses() + "\n");
+        } catch (IOException e) {
+            System.err.println("Error");
+    }
+}  
 
 }
